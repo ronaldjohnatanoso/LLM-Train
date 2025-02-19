@@ -1,0 +1,47 @@
+LOOK HERE:
+    step 1: 
+        - copy the csv file and move it to data/conversations/ 
+    step 2: 
+        - run the csv_prep.py , make sure to match the name of csv 
+        - this will create the output.txt 
+    step 3: 
+        - run the prepare.py
+        -this will make the output.txt into train.bin and val.bin 
+    step 4:
+        - we have 3 model types, model_full.py, model_slide.py, model_local.py
+        - to use a model, copy paste it and paste it to model.py
+    step 5: 
+        - check config/train_conversation for settings, you can adjust them,
+        - also turn on wandb logs to record statistics, you do have to setup an account though, you can also just turn off in config  
+    step 5: 
+        - run this: python train.py config/train_conversation.py  
+    
+
+PREPARING DATA
+    - under data folder, there should be your dataset folder named accordingly
+    - the dataset folder should have train.bin and val.bin prepared
+    - you can prepare and preprocess your train/val with a prepare.py from other datasets folder
+
+TRAINING YOUR MODEL WITH DATA
+    - we have 3 model types: (1) model_full , (2) model_local, (3) model_slide 
+    - if you want to use a particular model, you must copy paste it from the 3 and paste it directly to the model.py
+        as model.py is what is actually being used. PS: planning to be refactored in the future
+
+    - command to train: 
+        python train.py config/train_testgpt.py --init_from=scratch --device=cuda --out_dir=out-gpt-test-fixed_latest 
+
+    - train.py is where your preparations are ie. wandb logging, train loop. Default values for hyperparameters are also here
+        but can be overriden in the config. You can also opt to use GPT2 or just use the custom class GPT config that is defined in model.py
+
+    - config/train_testgpt.py is where you can declare your hyperparameters and variables to override the defaults in model.py
+        --init_from= scratch or resume , --device=cuda or cpu , --out_dir= name of the folder where model is put
+
+    - sample from a model
+        - python sample.py \
+            --out_dir={model folder name} \
+            --start="What is the answer to life, the universe, and everything?" \
+            
+PS
+    - ignore other irrelevant files, to be cleaned soon
+
+
