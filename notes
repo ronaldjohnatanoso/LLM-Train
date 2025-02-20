@@ -4,3 +4,10 @@ gradient accumator = 2* 5 ->4:30 mins in between 10 iterations (0-10) {windows}
 
 
 sudo sysctl -w vm.oom_kill_allocating_task=0
+
+sliding not yet working
+
+to test: sample 
+
+
+a step is every eval interval

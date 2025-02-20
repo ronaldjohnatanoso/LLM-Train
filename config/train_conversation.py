@@ -7,11 +7,11 @@ compile=False
 
 init_from='scratch'
 
-wandb_log = True
-wandb_project = 'convers_local'
-wandb_run_name='b-32w-5'
+wandb_log = False
+wandb_project = 'convers_slide'
+wandb_run_name='slide-32w-8'
 
-out_dir='out-convers-local'
+out_dir='out-convers-slide'
 # saves the model if its good enough
 eval_interval = 100//2 # keep frequent because we'll overfit, orig 250
 # how may batches to do for evaluation 
@@ -25,9 +25,10 @@ always_save_checkpoint = True
 batch_size = 12//2
 block_size = 1024//2
 #orig 5
-gradient_accumulation_steps = 3 * 8
+gradient_accumulation_steps = 1 * 8
 
-
+n_layer = 12//2
+n_head = 12
 
 dataset = 'conversations'
 # this makes total number of tokens be 300B

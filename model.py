@@ -42,9 +42,9 @@ class CausalSelfAttention(nn.Module):
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
 
         y = torch.zeros_like(v)
-        for i in range(0, T, self.window_size):
+        for i in range(0, T):
             start = max(0, i - self.window_size + 1)
-            end = min(T, i + self.window_size)
+            end = i + 1
             window_length = end - start
 
             q_window = q[:, :, start:end]
@@ -168,12 +168,12 @@ class GPT(nn.Module):
             x = block(x)
         x = self.transformer.ln_f(x)
 
-        logits = self.lm_head(x)
-
         if targets is not None:
+            logits = self.lm_head(x)
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
             return logits, loss
         else:
+            logits = self.lm_head(x)
             return logits
 
     def crop_block_size(self, block_size):
@@ -281,15 +281,23 @@ class GPT(nn.Module):
 
     @torch.no_grad()
     def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+        """
+        Take a conditioning sequence of indices idx (LongTensor of shape (b,t))
+        and complete the sequence max_new_tokens times, feeding the predictions
+        back into the model each time.
+        """
         for _ in range(max_new_tokens):
+            # if the context is too long, crop it
             idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
-            logits = self(idx_cond)  # Only logits are returned
+            # forward pass to get logits
+            out = self(idx_cond)
+            logits = out[0] if isinstance(out, tuple) else out
+            # pluck the logits at the final timestep and scale by temperature
             logits = logits[:, -1, :] / temperature
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = -float('Inf')
+                logits[logits < v[:, [-1]]] = -float('inf')
             probs = F.softmax(logits, dim=-1)
             idx_next = torch.multinomial(probs, num_samples=1)
             idx = torch.cat((idx, idx_next), dim=1)
-
         return idx
