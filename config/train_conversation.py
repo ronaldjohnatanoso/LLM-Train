@@ -24,7 +24,7 @@ wandb_log = True
 wandb_project = f'{model_type}-conversation'
 wandb_run_name=f'{model_type}-{window_size}w-{run_number[model_type]}'
 
-out_dir='out-conversation-{model_type}'
+out_dir=f'out-conversation-{model_type}'
 
 if is_test:
     wandb_log = False
