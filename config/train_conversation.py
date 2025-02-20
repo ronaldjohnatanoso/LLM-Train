@@ -9,14 +9,15 @@ init_from='scratch'
 
 is_test = True
 # full, slide, local
-model_type = 'full' 
+model_type = 'slide' 
 
-#run number counter
+#run number counter, increment after each run, used for wandb run name
 run_number = {
-    'full': 1,
-    'slide': 1,
-    'local': 1
-}
+    'full': 0,
+    'slide': 0,
+    'local': 0
+} 
+
 
 window_size = 32
 
@@ -44,9 +45,9 @@ always_save_checkpoint = True
 batch_size = 12//2
 block_size = 1024//2
 #orig 5
-gradient_accumulation_steps = 1 * 8
+gradient_accumulation_steps = 3 * 8
 
-n_layer = 12//2
+n_layer = 12
 n_head = 12
 
 dataset = 'conversations'

@@ -31,7 +31,7 @@ class CausalSelfAttention(nn.Module):
         self.n_head = config.n_head
         self.n_embd = config.n_embd
         self.dropout = config.dropout
-        self.window_size = WINDOW_SIZE
+        self.window_size = config.window_size
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
 
     def forward(self, x):

@@ -2,7 +2,7 @@ import os
 import torch
 
 # Check if the CUDNN_DISABLE environment variable is set
-cudnn_disabled = os.environ.get("CUDNN_DISABLE", "0") == "1"
+cudnn_disabled = os.environ.get("CUDNN_DISABLE", "1") == "1"
 print(f"CUDNN_DISABLE is set: {cudnn_disabled}")
 
 # Check if cuDNN is enabled in PyTorch
