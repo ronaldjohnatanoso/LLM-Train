@@ -12,4 +12,6 @@ print(f"cuDNN enabled in PyTorch: {cudnn_enabled}")
 
 print(f"PyTorch version: {torch.__version__}")
 
-torch.backends.cuda.enable_cudnn_sdp(True)
+# torch.backends.cuda.enable_cudnn_sdp(True)
+
+print('testing')
