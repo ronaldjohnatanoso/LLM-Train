@@ -28,7 +28,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
-from model import GPTConfig, GPT
+from model_full import GPTConfig, GPT
 
 # torch.backends.cuda.enable_cudnn_sdp(False)
 
@@ -42,6 +42,7 @@ eval_iters = 200
 eval_only = False # if True, script exits right after the first eval
 always_save_checkpoint = True # if True, always save a checkpoint after each eval
 init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
+model_type = 'full'
 # wandb logging
 wandb_log = False # disabled by default
 wandb_project = 'owt'
@@ -52,6 +53,7 @@ gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
 batch_size = 12 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
 # model
+window_size = 32
 n_layer = 12
 n_head = 12
 n_embd = 768
@@ -80,6 +82,15 @@ config_keys = [k for k,v in globals().items() if not k.startswith('_') and isins
 exec(open('configurator.py').read()) # overrides from command line or config file
 config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # -----------------------------------------------------------------------------
+
+# override the model type to use the correct model file
+if model_type == 'full':
+    from model_full import GPT, GPTConfig
+elif model_type == 'slide':
+    from model_slide import GPT, GPTConfig
+elif model_type == 'local':
+    from model_local import GPT, GPTConfig
+
 
 # various inits, derived attributes, I/O setup
 ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
@@ -146,9 +157,18 @@ if os.path.exists(meta_path):
     meta_vocab_size = meta['vocab_size']
     print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
 
-# model init
-model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
+# model init that uses window_size if needed
+if model_type == 'slide' or model_type == 'local':
+    model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
+                  bias=bias, vocab_size=None, dropout=dropout, window_size=window_size) # start with model_args from command line
+# model does not use window_size
+else:
+    model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
                   bias=bias, vocab_size=None, dropout=dropout) # start with model_args from command line
+
+
+
+
 if init_from == 'scratch':
     # init a new model from scratch
     print("Initializing a new model from scratch")

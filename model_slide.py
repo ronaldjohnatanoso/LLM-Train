@@ -6,8 +6,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-# Hyperparameters for local window attention
-WINDOW_SIZE = 32  # Size of the sliding attention window
+
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -109,7 +108,8 @@ class Block(nn.Module):
 @dataclass
 class GPTConfig:
     scale_factor: int = 1
-    
+
+    window_size: int = 32
     block_size: int = 1024
     vocab_size: int = 50304 # GPT-2 vocab_size of 50257, padded up to nearest multiple of 64 for efficiency
     n_layer: int = 12

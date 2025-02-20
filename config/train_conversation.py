@@ -7,11 +7,30 @@ compile=False
 
 init_from='scratch'
 
-wandb_log = False
-wandb_project = 'convers_slide'
-wandb_run_name='slide-32w-8'
+is_test = True
+# full, slide, local
+model_type = 'full' 
 
-out_dir='out-convers-slide'
+#run number counter
+run_number = {
+    'full': 1,
+    'slide': 1,
+    'local': 1
+}
+
+window_size = 32
+
+wandb_log = True
+wandb_project = f'{model_type}-conversation'
+wandb_run_name=f'{model_type}-{window_size}w-{run_number[model_type]}'
+
+out_dir='out-conversation-{model_type}'
+
+if is_test:
+    wandb_log = False
+    wandb_project = wandb_project+ '-test'
+    out_dir = out_dir + '-test'
+    
 # saves the model if its good enough
 eval_interval = 100//2 # keep frequent because we'll overfit, orig 250
 # how may batches to do for evaluation 
@@ -38,3 +57,5 @@ lr_decay_iters = 600000
 
 # weight decay
 weight_decay = 1e-1
+
+

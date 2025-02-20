@@ -9,7 +9,7 @@ LOOK HERE:
         -this will make the output.txt into train.bin and val.bin 
     step 4:
         - we have 3 model types, model_full.py, model_slide.py, model_local.py
-        - to use a model, copy paste it and paste it to model.py
+        - set the model_type in config/train_conversation
     step 5: 
         - check config/train_conversation for settings, you can adjust them,
         - also turn on wandb logs to record statistics, you do have to setup an account though, you can also just turn off in config  
@@ -24,8 +24,8 @@ PREPARING DATA
 
 TRAINING YOUR MODEL WITH DATA
     - we have 3 model types: (1) model_full , (2) model_local, (3) model_slide 
-    - if you want to use a particular model, you must copy paste it from the 3 and paste it directly to the model.py
-        as model.py is what is actually being used. PS: planning to be refactored in the future
+    - if you want to use a particular model, set the model model type IN THE config/train_conversation
+    - anything in the config and command lines always override whatever the default values are in train.py and model
 
     - command to train: 
         python train.py config/train_testgpt.py --init_from=scratch --device=cuda --out_dir=out-gpt-test-fixed_latest 
