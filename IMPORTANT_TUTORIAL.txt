@@ -15,7 +15,9 @@ LOOK HERE:
         - also turn on wandb logs to record statistics, you do have to setup an account though, you can also just turn off in config  
     step 5: 
         - run this: python train.py config/train_conversation.py  
-    
+
+IMPORTANT ISSUE:
+    - when using sliding attention model, in train.py set the use cudnn to false
 
 PREPARING DATA
     - under data folder, there should be your dataset folder named accordingly
