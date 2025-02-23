@@ -7,14 +7,16 @@ compile=False
 
 init_from='scratch'
 
-is_test = True
+
+is_test = False
 # full, slide, local
 model_type = 'slide' 
 
 #run number counter, increment after each run, used for wandb run name
+# dont increment for test runs
 run_number = {
     'full': 0,
-    'slide': 0,
+    'slide': 1,
     'local': 0
 } 
 
@@ -45,7 +47,7 @@ always_save_checkpoint = True
 batch_size = 12//2
 block_size = 1024//2
 #orig 5
-gradient_accumulation_steps = 3 * 8
+gradient_accumulation_steps = 1 * 8
 
 n_layer = 12
 n_head = 12

@@ -30,7 +30,7 @@ from torch.distributed import init_process_group, destroy_process_group
 
 from model_full import GPTConfig, GPT
 
-# torch.backends.cuda.enable_cudnn_sdp(False)
+torch.backends.cuda.enable_cudnn_sdp(True)
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText

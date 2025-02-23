@@ -6,7 +6,10 @@ import pickle
 from contextlib import nullcontext
 import torch
 import tiktoken
-from model import GPTConfig, GPT
+
+# slide, full, local
+# this will get overridden by the config file
+model_type = 'slide'
 
 # -----------------------------------------------------------------------------
 init_from = 'resume' # either 'resume' (from an out_dir) or a gpt2 variant (e.g. 'gpt2-xl')
@@ -22,6 +25,14 @@ dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported
 compile = False # use PyTorch 2.0 to compile the model to be faster
 exec(open('configurator.py').read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
+
+# models
+if model_type == 'slide':
+    from model_slide import GPT, GPTConfig
+elif model_type == 'full':
+    from model_full import GPT, GPTConfig
+elif model_type == 'local':
+    from model_local import GPT, GPTConfig
 
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
