@@ -22,3 +22,5 @@ venv/
 dataset_cache/
 
 wandb/
+
+.venv/

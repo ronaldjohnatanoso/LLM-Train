@@ -3,20 +3,20 @@
 # $ torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py
 
 device = 'cuda'
-compile=False
+compile=True
 
 init_from='scratch'
 
 
-is_test = False
+is_test = True
 # full, slide, local
-model_type = 'slide' 
+model_type = 'full' 
 
 #run number counter, increment after each run, used for wandb run name
 # dont increment for test runs
 run_number = {
     'full': 0,
-    'slide': 1,
+    'slide': 0,
     'local': 0
 } 
 
@@ -27,7 +27,10 @@ wandb_log = True
 wandb_project = f'{model_type}-conversation'
 wandb_run_name=f'{model_type}-{window_size}w-{run_number[model_type]}'
 
-out_dir=f'out-conversation-{model_type}'
+if model_type == 'full':
+    window_size = 'full'
+
+out_dir=f'out-conversation-{model_type}-w{window_size}-{run_number[model_type]}'
 
 if is_test:
     wandb_log = False
@@ -35,19 +38,19 @@ if is_test:
     out_dir = out_dir + '-test'
     
 # saves the model if its good enough
-eval_interval = 100//2 # keep frequent because we'll overfit, orig 250
+eval_interval = 100//1 # keep frequent because we'll overfit, orig 250
 # how may batches to do for evaluation 
-eval_iters = 200//2
+eval_iters = 200//1
 log_interval = 10 # don't print too too often
 
 # we expect to overfit on this small dataset, so only save when val improves
 always_save_checkpoint = True
 # these make the total batch size be ~0.5M
 # 12 batch size * 1024 block size * 5 gradaccum * 8 GPUs = 491,520
-batch_size = 12//2
-block_size = 1024//2
+batch_size = 12//3
+block_size = 1024//1
 #orig 5
-gradient_accumulation_steps = 1 * 8
+gradient_accumulation_steps = 3 * 8
 
 n_layer = 12
 n_head = 12

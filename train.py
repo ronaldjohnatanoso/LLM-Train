@@ -31,7 +31,10 @@ from torch.distributed import init_process_group, destroy_process_group
 from model_full import GPTConfig, GPT
 
 # set this to false if you wnat to use slide
-torch.backends.cuda.enable_cudnn_sdp(True)
+# torch.backends.cuda.enable_cudnn_sdp(True)
+
+torch.backends.cuda.enable_flash_sdp(True)
+
 
 
 
