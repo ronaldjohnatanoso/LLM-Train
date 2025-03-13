@@ -233,12 +233,13 @@ if block_size < model.config.block_size:
 model.to(device)
 
 #model params
-model_params = round(sum(p.numel() for p in model.parameters()) / 1e6, 3)
+model_params =f"{round(sum(p.numel() for p in model.parameters()) / 1e6)}" 
+
 
 #create the out_dir with model_params appended name
 wandb_run_name=f'{model_type}-w{window_size}-{model_params}M-r{run_number[model_type]}'
 wandb_run_id = f'{model_type}-w{window_size}-{model_params}M-r{run_number[model_type]}'
-out_dir = out_dir + f"{out_dir}-{model_params}M"
+out_dir = f'out-{model_type}-w{window_size}-{model_params}M-r{run_number[model_type]}'
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))

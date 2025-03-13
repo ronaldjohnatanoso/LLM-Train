@@ -31,7 +31,6 @@ wandb_project = f'{model_type}-conversation'
 if model_type == 'full':
     window_size = 'full'
 
-out_dir=f'out-conversation-{model_type}-w{window_size}-{run_number[model_type]}'
 
 if is_test:
     wandb_log = False
