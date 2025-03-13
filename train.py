@@ -35,7 +35,8 @@ from model_full import GPTConfig, GPT
 
 torch.backends.cuda.enable_flash_sdp(True)
 
-
+# Set max_split_size_mb to avoid fragmentation
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
 
 # -----------------------------------------------------------------------------
@@ -273,7 +274,10 @@ def get_lr(it):
 # logging
 if wandb_log and master_process:
     import wandb
-    wandb.init(project=wandb_project, name=wandb_run_name, config=config)
+    if init_from == 'resume':
+        wandb.init(project=wandb_project, name=wandb_run_name, config=config, resume='must')
+    else:
+        wandb.init(project=wandb_project, name=wandb_run_name, config=config)
 
 # training loop
 X, Y = get_batch('train') # fetch the very first batch
@@ -344,15 +348,13 @@ while True:
             sum(p.numel() * 4 for p in model.parameters())  # Model parameters
         )
         print(f"  Estimated memory for this iteration: {estimated_memory / 1e9:.2f} GB")
-        print()
+
+
 
 
     # forward backward update, with optional gradient accumulation to simulate larger batch size
     # and using the GradScaler if data type is float16
     for micro_step in range(gradient_accumulation_steps):
-        
-
-        
         if ddp:
             # in DDP training we only need to sync gradients at the last micro step.
             # the official way to do this is with model.no_sync() context manager, but
@@ -375,6 +377,7 @@ while True:
     scaler.update()
     # flush the gradients as soon as we can, no need for this memory anymore
     optimizer.zero_grad(set_to_none=True)
+    torch.cuda.empty_cache()
 
     # timing and logging
     t1 = time.time()

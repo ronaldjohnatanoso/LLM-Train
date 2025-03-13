@@ -9,7 +9,7 @@ import tiktoken
 
 # slide, full, local
 # this will get overridden by the config file
-model_type = 'slide'
+model_type = 'local'
 
 # -----------------------------------------------------------------------------
 init_from = 'resume' # either 'resume' (from an out_dir) or a gpt2 variant (e.g. 'gpt2-xl')
@@ -55,9 +55,9 @@ if init_from == 'resume':
         if k.startswith(unwanted_prefix):
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
     model.load_state_dict(state_dict)
-elif init_from.startswith('gpt2'):
-    # init from a given GPT-2 model
-    model = GPT.from_pretrained(init_from, dict(dropout=0.0))
+# elif init_from.startswith('gpt2'):
+#     # init from a given GPT-2 model
+#     model = GPT.from_pretrained(init_from, dict(dropout=0.0))
 
 model.eval()
 model.to(device)

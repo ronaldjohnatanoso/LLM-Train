@@ -35,43 +35,50 @@ class CausalSelfAttention(nn.Module):
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
 
     def forward(self, x):
+        #local
         B, T, C = x.size()
-        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        H = self.n_head
+        head_dim = C // H
 
-        y = torch.zeros_like(v)
-        for i in range(0, T, self.window_size):
-            start = max(0, i - self.window_size + 1)
-            end = min(T, i + self.window_size)
-            window_length = end - start
+        # Compute query, key, value projections
+        q, k, v = self.c_attn(x).split(C, dim=2)
 
-            q_window = q[:, :, start:end]
-            k_window = k[:, :, start:end]
-            v_window = v[:, :, start:end]
+        # Reshape into multi-head format
+        q = q.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
+        k = k.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
+        v = v.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
 
-            if self.flash:
-                # print(f"Using Flash Attention within window: start={start}, end={end}")
-                att_weights = torch.nn.functional.scaled_dot_product_attention(
-                    q_window, k_window, v_window, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True
-                )
-            else:
-                print("use flash")
-                exit()
-                
-                # print(f"Using standard attention within window: start={start}, end={end}")
-                att_scores = (q_window @ k_window.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-                causal_mask = torch.tril(torch.ones(window_length, window_length, device=x.device), diagonal=0).bool()
-                att_scores = att_scores.masked_fill(~causal_mask, float('-inf'))
-                att_weights = F.softmax(att_scores, dim=-1)
-                att_weights = self.attn_dropout(att_weights)
-                att_weights = att_weights @ v_window
+        W = self.window_size
+        T_pad = (T + W - 1) // W * W  # Pad T to be a multiple of W
+        pad_length = T_pad - T
 
-            y[:, :, start:end] = att_weights
+        # Pad q, k, v along sequence dim (T) if needed
+        if pad_length > 0:
+            q = F.pad(q, (0, 0, 0, pad_length))  # Pad sequence dim
+            k = F.pad(k, (0, 0, 0, pad_length))
+            v = F.pad(v, (0, 0, 0, pad_length))
 
-        y = y.transpose(1, 2).contiguous().view(B, T, C)
+        # Reshape into (B, H, num_windows, W, head_dim)
+        num_windows = T_pad // W
+        q = q.view(B, H, num_windows, W, head_dim)
+        k = k.view(B, H, num_windows, W, head_dim)
+        v = v.view(B, H, num_windows, W, head_dim)
+
+        # Apply Flash Attention within each window
+        att_weights = F.scaled_dot_product_attention(
+            q, k, v,
+            attn_mask=None,
+            dropout_p=self.dropout if self.training else 0,
+            is_causal=True  # Causal within each window
+        )  # (B, H, num_windows, W, head_dim)
+
+        # Restore original shape
+        y = att_weights.view(B, H, T_pad, head_dim)[:, :, :T, :]  # Remove padding
+        y = y.transpose(1, 2).contiguous().view(B, T, C)  # (B, T, C)
+
+        # Apply output projection and dropout
         y = self.resid_dropout(self.c_proj(y))
+    
         return y
 
 class MLP(nn.Module):

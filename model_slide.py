@@ -34,44 +34,44 @@ class CausalSelfAttention(nn.Module):
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
 
     def forward(self, x):
+        #slide  
         B, T, C = x.size()
+        H = self.n_head
+        head_dim = C // H
 
         # Compute query, key, value projections
-        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
+        q, k, v = self.c_attn(x).split(C, dim=2)
 
-        # Initialize output tensor
-        y = torch.zeros_like(v)  # (B, nh, T, hs)
+        # Reshape into multi-head format
+        q = q.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
+        k = k.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
+        v = v.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
 
-        # Compute attention scores within the sliding window
-        for i in range(T):
-            start = max(0, i - self.window_size + 1)
-            end = i + 1
-            window_length = end - start
+        # Create indices for the sliding window
+        max_range = torch.arange(T, device=x.device)
+        indices = max_range.unsqueeze(1) - torch.arange(self.window_size, device=x.device)  # (T, window_size)
+        indices = torch.clamp(indices, min=0)  # Ensure no negative indices (causal mask behavior)
 
-            # Compute attention scores for the current window
-            q_window = q[:, :, i:i+1]
-            k_window = k[:, :, start:end]
-            v_window = v[:, :, start:end]
+        # Gather sliding window key/value tensors efficiently
+        k_windows = k[:, :, indices, :]  # (B, H, T, window_size, hs)
+        v_windows = v[:, :, indices, :]  # (B, H, T, window_size, hs)
 
-            if self.flash:
-                att_weights = torch.nn.functional.scaled_dot_product_attention(
-                    q_window, k_window, v_window, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True
-                )
-            else:
-                att_scores = (q_window @ k_window.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))  # (B, nh, 1, w)
-                causal_mask = torch.tril(torch.ones(1, window_length, window_length, device=x.device), diagonal=0).bool()  # (1, w)
-                att_scores = att_scores.masked_fill(~causal_mask, float('-inf'))  # (B, nh, 1, w)
-                att_weights = F.softmax(att_scores, dim=-1)  # (B, nh, 1, w)
-                att_weights = self.attn_dropout(att_weights)
-                att_weights = att_weights @ v_window  # (B, nh, 1, hs)
+        # Compute attention
+        q_windows = q.unsqueeze(3)  # (B, H, T, 1, hs)
+        att_weights = F.scaled_dot_product_attention(
+            q_windows, k_windows, v_windows,
+            attn_mask=None,
+            dropout_p=self.dropout if self.training else 0,
+            is_causal=True
+        )  # (B, H, T, 1, hs)
 
-            y[:, :, i:i+1] = att_weights
+        # Remove extra dimension
+        y = att_weights.squeeze(3)  # (B, H, T, hs)
 
-        # Reassemble all head outputs and apply output projection
+        # Reassemble all head outputs
         y = y.transpose(1, 2).contiguous().view(B, T, C)  # (B, T, C)
+
+        # Apply output projection and dropout
         y = self.resid_dropout(self.c_proj(y))
         return y
 

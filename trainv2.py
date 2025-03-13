@@ -13,7 +13,7 @@ To run with DDP on 4 gpus across 2 nodes, example:
 $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123.456 --master_port=1234 train.py
 - Run on the worker node:
 $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py
-(If your cluster does not have Infiniband interconnect prepend NCCL_IB_DISABLE=1)
+(If your cluster does not have Infiniband interconnect tmux a -t pend NCCL_IB_DISABLE=1)
 """
 import torch.cuda as cuda
 import os
@@ -32,14 +32,14 @@ import signal
 import gc
 import traceback
 import atexit
-
+import json
 from model_full import GPTConfig, GPT
 
 # set this to false if you wnat to use slide
 # torch.backends.cuda.enable_cudnn_sdp(True)
 
 torch.backends.cuda.enable_flash_sdp(True)
-
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 os.environ["NCCL_DEBUG"] = "INFO"
 
 # -----------------------------------------------------------------------------
@@ -57,6 +57,7 @@ model_type = 'full'
 wandb_log = False # disabled by default
 wandb_project = 'owt'
 wandb_run_name = 'gpt2' # 'run' + str(time.time())
+wandb_run_id = 'default'
 # data
 dataset = 'openwebtext'
 gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
@@ -81,6 +82,12 @@ decay_lr = True # whether to decay the learning rate
 warmup_iters = 2000 # how many steps to warm up for
 lr_decay_iters = 600000 # should be ~= max_iters per Chinchilla
 min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
+model_params = 0 # model params
+run_number = {
+    'full': 0,
+    'slide': 0,
+    'local': 0
+}
 # DDP settings
 backend = 'nccl' # 'nccl', 'gloo', etc.
 # system
@@ -225,6 +232,14 @@ if block_size < model.config.block_size:
     model_args['block_size'] = block_size # so that the checkpoint will have the right value
 model.to(device)
 
+#model params
+model_params = round(sum(p.numel() for p in model.parameters()) / 1e6, 3)
+
+#create the out_dir with model_params appended name
+wandb_run_name=f'{model_type}-w{window_size}-{model_params}M-r{run_number[model_type]}'
+wandb_run_id = f'{model_type}-w{window_size}-{model_params}M-r{run_number[model_type]}'
+out_dir = out_dir + f"{out_dir}-{model_params}M"
+
 # initialize a GradScaler. If enabled=False scaler is a no-op
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
@@ -274,10 +289,15 @@ def get_lr(it):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
+
+
 # logging
 if wandb_log and master_process:
     import wandb
-    wandb.init(project=wandb_project, name=wandb_run_name, config=config)
+    if init_from == 'resume':
+        wandb.init(project=wandb_project, name=wandb_run_name, config=config, resume='must', id=wandb_run_id)
+    else:
+        wandb.init(project=wandb_project, name=wandb_run_name, config=config, id=wandb_run_id)
 
 # Define a cleanup function
 def cleanup():
@@ -547,6 +567,55 @@ def run_training():
     log_with_flush("Training completed successfully!")
     return
 
+
+def save_important_vars(model):
+    # Define the important variables
+    important_vars = {
+        "out_dir": out_dir,
+        "eval_interval": eval_interval,
+        "log_interval": log_interval,
+        "eval_iters": eval_iters,
+        "eval_only": eval_only,
+        "always_save_checkpoint": always_save_checkpoint,
+        "init_from": init_from,
+        "model_type": model_type,
+        "wandb_log": wandb_log,
+        "wandb_project": wandb_project,
+        "wandb_run_name": wandb_run_name,
+        "wandb_run_id": wandb_run_id,
+        "dataset": dataset,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+        "batch_size": batch_size,
+        "block_size": block_size,
+        "window_size": window_size,
+        "n_layer": n_layer,
+        "n_head": n_head,
+        "n_embd": n_embd,
+        "dropout": dropout,
+        "bias": bias,
+        "learning_rate": learning_rate,
+        "max_iters": max_iters,
+        "weight_decay": weight_decay,
+        "beta1": beta1,
+        "beta2": beta2,
+        "grad_clip": grad_clip,
+        "decay_lr": decay_lr,
+        "warmup_iters": warmup_iters,
+        "lr_decay_iters": lr_decay_iters,
+        "min_lr": min_lr,
+        "backend": backend,
+        "device": device,
+        "dtype": dtype,
+        "num_parameters": model_params,
+    }
+
+    # Create the output directory if it doesn't exist
+    os.makedirs(out_dir, exist_ok=True)
+
+    # Write the important variables to a JSON file
+    with open(os.path.join(out_dir, 'hyperparams.json'), 'w') as f:
+        json.dump(important_vars, f, indent=4)
+
 # Initialize variables
 X, Y = get_batch('train')  # fetch the very first batch
 t0 = time.time()
@@ -558,6 +627,7 @@ last_log_time = time.time()  # Track time of last log message
 
 try:
     # Run the main training loop
+    save_important_vars(model)
     run_training()
 finally:
     # Always perform cleanup on exit
@@ -565,3 +635,6 @@ finally:
     if ddp:
         destroy_process_group()
     log_with_flush("Script execution completed")
+
+
+

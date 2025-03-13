@@ -1,25 +1,26 @@
 import csv
 import os
 
-# Get the directory of the currently running script
-script_directory = os.path.dirname(os.path.abspath(__file__))
-
-# Define the input and output file paths
-input_csv = os.path.join(script_directory, 'conv.csv')
-output_txt = os.path.join(script_directory, 'input.txt')
-
-# Open the input CSV file and output text file
-with open(input_csv, 'r', newline='', encoding='utf-8') as csvfile, open(output_txt, 'w', encoding='utf-8') as txtfile:
-    csvreader = csv.reader(csvfile)
-    
-    # Skip the header row if there is one
-    next(csvreader, None)
-    
-    # Iterate through each row in the CSV file
-    for row in csvreader:
-        # Extract the non-empty columns
-        non_empty_columns = [col for col in row if col.strip()]
+def csv_to_text(input_csv, output_txt):
+    with open(input_csv, 'r', encoding='utf-8') as csv_file, open(output_txt, 'w', encoding='utf-8') as txt_file:
+        reader = csv.reader(csv_file)
+        # Skip header row if needed - uncomment the next line if your CSV has headers
+        # next(reader)
         
-        # Write each non-empty column to the text file
-        for sentence in non_empty_columns:
-            txtfile.write(sentence + '\n')
+        for row in reader:
+            if len(row) >= 3:  # Make sure row has enough columns
+                # Extract columns B and C (indices 1 and 2)
+                sentence_b = row[1].strip()
+                sentence_c = row[2].strip()
+                
+                # Write to text file as "sentence_b. sentence_c"
+                txt_file.write(f"{sentence_b}. {sentence_c}\n")
+
+# Get the directory of the current script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define input and output files in the same directory
+input_file = os.path.join(current_dir, "conv.csv")
+output_file = os.path.join(current_dir, "input.txt")
+
+csv_to_text(input_file, output_file)
