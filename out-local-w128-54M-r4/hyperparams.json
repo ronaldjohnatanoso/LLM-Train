@@ -1,5 +1,5 @@
 {
-    "out_dir": "out-53.58M",
+    "out_dir": "out-local-w128-54M-r4",
     "eval_interval": 100,
     "log_interval": 10,
     "eval_iters": 200,
@@ -9,8 +9,8 @@
     "model_type": "local",
     "wandb_log": true,
     "wandb_project": "local-conversation",
-    "wandb_run_name": "local-w128-53.58M-r3",
-    "wandb_run_id": "local-w128-53.58M-r3",
+    "wandb_run_name": "local-w128-54M-r4",
+    "wandb_run_id": "local-w128-54M-r4",
     "dataset": "conversations",
     "gradient_accumulation_steps": 16,
     "batch_size": 6,
@@ -34,5 +34,5 @@
     "backend": "nccl",
     "device": "cuda",
     "dtype": "float16",
-    "num_parameters": 53.58
+    "num_parameters": "54"
 }

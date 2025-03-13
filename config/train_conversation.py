@@ -17,7 +17,7 @@ model_type = 'local'
 run_number = {
     'full': 4,
     'slide': 0,
-    'local': 3
+    'local': 6
 } 
 
 #256, 512, 128
@@ -30,6 +30,7 @@ wandb_project = f'{model_type}-conversation'
 
 if model_type == 'full':
     window_size = 'full'
+
 
 
 if is_test:

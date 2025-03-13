@@ -232,14 +232,7 @@ if block_size < model.config.block_size:
     model_args['block_size'] = block_size # so that the checkpoint will have the right value
 model.to(device)
 
-#model params
-model_params =f"{round(sum(p.numel() for p in model.parameters()) / 1e6)}" 
 
-
-#create the out_dir with model_params appended name
-wandb_run_name=f'{model_type}-w{window_size}-{model_params}M-r{run_number[model_type]}'
-wandb_run_id = f'{model_type}-w{window_size}-{model_params}M-r{run_number[model_type]}'
-out_dir = f'out-{model_type}-w{window_size}-{model_params}M-r{run_number[model_type]}'
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
 scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
@@ -291,13 +284,24 @@ def get_lr(it):
     return min_lr + coeff * (learning_rate - min_lr)
 
 
+#model params
+model_params =f"{round(sum(p.numel() for p in model.parameters()) / 1e6)}M" 
 
+
+#create the out_dir with model_params appended name
+wandb_run_name=f'{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
+wandb_run_id = f'{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
+out_dir = f'out-{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
+config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # logging
 if wandb_log and master_process:
+
+
     import wandb
     if init_from == 'resume':
         wandb.init(project=wandb_project, name=wandb_run_name, config=config, resume='must', id=wandb_run_id)
     else:
+        print('your wandb run id is:', wandb_run_id)
         wandb.init(project=wandb_project, name=wandb_run_name, config=config, id=wandb_run_id)
 
 # Define a cleanup function
@@ -367,6 +371,10 @@ def run_training():
 
             # evaluate the loss on train/val sets and write checkpoints
             if iter_num % eval_interval == 0 and master_process:
+                # save the iter number and steps in a json inside its out_dir
+                with open(os.path.join(out_dir, 'steps.json'), 'w') as f:
+                    json.dump({'iter_num': iter_num, 'steps' : iter_num//eval_interval}, f, indent=4)
+                
                 try:
                     losses = estimate_loss()
                     log_message = f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
@@ -572,6 +580,7 @@ def run_training():
 def save_important_vars(model):
     # Define the important variables
     important_vars = {
+        "num_parameters": model_params,
         "out_dir": out_dir,
         "eval_interval": eval_interval,
         "log_interval": log_interval,
@@ -607,7 +616,7 @@ def save_important_vars(model):
         "backend": backend,
         "device": device,
         "dtype": dtype,
-        "num_parameters": model_params,
+
     }
 
     # Create the output directory if it doesn't exist
