@@ -9,7 +9,7 @@ import tiktoken
 
 # slide, full, local
 # this will get overridden by the config file
-model_type = 'local'
+model_type = ''
 
 # -----------------------------------------------------------------------------
 init_from = 'resume' # either 'resume' (from an out_dir) or a gpt2 variant (e.g. 'gpt2-xl')
@@ -25,6 +25,10 @@ dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported
 compile = False # use PyTorch 2.0 to compile the model to be faster
 exec(open('configurator.py').read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
+out_dir = 'out-local-w128-54M-r8'
+#parse the model type from the out_dir
+model_type = out_dir.split('-')[1]
+print('YOUR MODEL type is:', model_type)
 
 # models
 if model_type == 'slide':
