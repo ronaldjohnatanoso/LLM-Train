@@ -5,8 +5,11 @@
 device = 'cuda'
 compile=True
 
-init_from='scratch'
+init_from='resume'
 
+if init_from == 'resume':
+    # change this manually to the our dir 
+    out_dir = 'out-local-w128-54M-r8'
 
 is_test = False
 # full, slide, local
@@ -15,9 +18,9 @@ model_type = 'local'
 #run number counter, increment after each run, used for wandb run name
 # dont increment for test runs
 run_number = {
-    'full': 4,
-    'slide': 0,
-    'local': 6
+    'full': 5,
+    'slide': 1,
+    'local': 8
 } 
 
 #256, 512, 128
@@ -41,7 +44,7 @@ if is_test:
 eval_interval = 100//1 # keep frequent because we'll overfit, orig 250
 # how may batches to do for evaluation 
 eval_iters = 200//1
-log_interval = 10 # don't print too too often
+log_interval = 100 # don't print too too often
 
 # we expect to overfit on this small dataset, so only save when val improves
 always_save_checkpoint = True

@@ -107,6 +107,7 @@ class Block(nn.Module):
 
 @dataclass
 class GPTConfig:
+    #default values to be overriden
     scale_factor: int = 1
 
     window_size: int = 32
