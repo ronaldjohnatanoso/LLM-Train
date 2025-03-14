@@ -56,7 +56,7 @@ block_size = 1024//1
 gradient_accumulation_steps = 2* 8
 
 n_layer = 12//6
-n_head = 12//6
+n_head = 99999999
 
 dataset = 'conversations'
 # this makes total number of tokens be 300B

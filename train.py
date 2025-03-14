@@ -288,18 +288,22 @@ def get_lr(it):
 model_params =f"{round(sum(p.numel() for p in model.parameters()) / 1e6)}M" 
 
 
-#create the out_dir with model_params appended name
-wandb_run_name=f'{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
-wandb_run_id = f'{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
-out_dir = f'out-{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
-config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # logging
 if wandb_log and master_process:
     import wandb
     if init_from == 'resume':
-        wandb.init(project=wandb_project, name=wandb_run_name, config=config, resume='must', id=wandb_run_id)
+        #depend on the checkpoint values for the run
+        #code here
+        ckpt_path = os.path.join(out_dir, 'ckpt.pt')
+        checkpoint = torch.load(ckpt_path, map_location=device)
+        wandb.init(project=wandb_project, name=checkpoint['config']['wandb_run_name'], config=checkpoint['config'], resume='must', id=checkpoint['config']['wandb_run_id'])   
     else:
-        print('your wandb run id is:', wandb_run_id)
+        #depend on values set in the config file and command line
+        #create the out_dir with model_params appended name
+        wandb_run_name=f'{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
+        wandb_run_id = f'{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
+        out_dir = f'out-{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
+        config = {k: globals()[k] for k in config_keys} # will be useful for logging
         wandb.init(project=wandb_project, name=wandb_run_name, config=config, id=wandb_run_id)
 
 # Define a cleanup function
@@ -622,7 +626,7 @@ def save_important_vars(model):
 
     # Write the important variables to a JSON file
     with open(os.path.join(out_dir, 'hyperparams.json'), 'w') as f:
-        json.dump(important_vars, f, indent=4)
+        json.dump(config, f, indent=4)
 
 # Initialize variables
 X, Y = get_batch('train')  # fetch the very first batch

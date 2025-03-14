@@ -1,5 +1,4 @@
 {
-    "num_parameters": "54M",
     "out_dir": "out-local-w128-54M-r8",
     "eval_interval": 100,
     "log_interval": 100,
@@ -32,7 +31,9 @@
     "warmup_iters": 2000,
     "lr_decay_iters": 600000,
     "min_lr": 6e-05,
+    "model_params": "54M",
     "backend": "nccl",
     "device": "cuda",
-    "dtype": "float16"
+    "dtype": "float16",
+    "compile": true
 }
