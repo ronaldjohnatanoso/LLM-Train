@@ -5,26 +5,27 @@
 device = 'cuda'
 compile=True
 
+# set resume as default for safety reasons
 init_from='resume'
 
-if init_from == 'resume':
-    # change this manually to the our dir 
-    out_dir = 'out-local-w128-54M-r8'
+#WRITE MANUALLY 
+out_dir=f''
 
 is_test = False
-# full, slide, local
-model_type = 'local' 
+    # full, slide, local
+if init_from == 'scratch':
+    model_type = 'slide' 
 
 #run number counter, increment after each run, used for wandb run name
 # dont increment for test runs
 run_number = {
     'full': 5,
-    'slide': 1,
-    'local': 8
+    'slide': 8,
+    'local': 12
 } 
 
 #256, 512, 128
-window_size = 128
+window_size = 8
 
 wandb_log = True
 wandb_project = f'{model_type}-conversation'
@@ -44,19 +45,19 @@ if is_test:
 eval_interval = 100//1 # keep frequent because we'll overfit, orig 250
 # how may batches to do for evaluation 
 eval_iters = 200//1
-log_interval = 100 # don't print too too often
+log_interval = 10 # don't print too too often
 
 # we expect to overfit on this small dataset, so only save when val improves
 always_save_checkpoint = True
 # these make the total batch size be ~0.5M
 # 12 batch size * 1024 block size * 5 gradaccum * 8 GPUs = 491,520
-batch_size = 12//2
+batch_size = 6
 block_size = 1024//1
 #orig 5
 gradient_accumulation_steps = 2* 8
 
 n_layer = 12//6
-n_head = 99999999
+n_head = 12//6
 
 dataset = 'conversations'
 # this makes total number of tokens be 300B

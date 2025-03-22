@@ -241,6 +241,8 @@ scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
 if init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
+#save config
+ckpt_config = checkpoint['config']
 checkpoint = None # free up memory
 
 # compile the model
@@ -288,15 +290,21 @@ def get_lr(it):
 model_params =f"{round(sum(p.numel() for p in model.parameters()) / 1e6)}M" 
 
 
+
+
 # logging
 if wandb_log and master_process:
     import wandb
     if init_from == 'resume':
         #depend on the checkpoint values for the run
         #code here
-        ckpt_path = os.path.join(out_dir, 'ckpt.pt')
-        checkpoint = torch.load(ckpt_path, map_location=device)
-        wandb.init(project=wandb_project, name=checkpoint['config']['wandb_run_name'], config=checkpoint['config'], resume='must', id=checkpoint['config']['wandb_run_id'])   
+        wandb_run_name = out_dir[4:] if out_dir.startswith("out-") else out_dir
+        wandb_run_id = wandb_run_name
+        model_type = out_dir.split('-')[1]  # Extract the part between the first and second '-'
+        wandb_project = f'{model_type}-conversation'
+        # print("project", wandb_project)
+        # print("config", ckpt_config)
+        wandb.init(project=wandb_project, name=wandb_run_name, config=ckpt_config, resume='must', id=wandb_run_id)   
     else:
         #depend on values set in the config file and command line
         #create the out_dir with model_params appended name
@@ -647,6 +655,5 @@ finally:
     if ddp:
         destroy_process_group()
     log_with_flush("Script execution completed")
-
 
 

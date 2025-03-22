@@ -45,4 +45,4 @@ weight_decay = 1e-2  # Reduce from 1e-1 to avoid over-regularization
 
 # Enable memory-efficient techniques
 mixed_precision = 'fp16'  # Enable FP16 to cut VRAM usage in half
-gradient_checkpointing = True  # Saves memory at the cost of slightly slower training
+gradient_checkpointing = False  # Saves memory at the cost of slightly slower training
