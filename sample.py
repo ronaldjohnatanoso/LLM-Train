@@ -25,9 +25,9 @@ dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported
 compile = False # use PyTorch 2.0 to compile the model to be faster
 exec(open('configurator.py').read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
-out_dir = 'out-local-w128-54M-r8'
 #parse the model type from the out_dir
 model_type = out_dir.split('-')[1]
+print("your out_dir is:", out_dir)
 print('YOUR MODEL type is:', model_type)
 
 # models

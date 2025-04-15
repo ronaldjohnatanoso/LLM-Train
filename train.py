@@ -39,7 +39,7 @@ from model_full import GPTConfig, GPT
 # torch.backends.cuda.enable_cudnn_sdp(True)
 
 torch.backends.cuda.enable_flash_sdp(True)
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+# os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 os.environ["NCCL_DEBUG"] = "INFO"
 
 # -----------------------------------------------------------------------------
@@ -132,8 +132,7 @@ else:
 tokens_per_iter = gradient_accumulation_steps * ddp_world_size * batch_size * block_size
 print(f"tokens per iteration will be: {tokens_per_iter:,}", flush=True)
 
-if master_process:
-    os.makedirs(out_dir, exist_ok=True)
+
 torch.manual_seed(1337 + seed_offset)
 torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
 torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
@@ -242,7 +241,8 @@ optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta
 if init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 #save config
-ckpt_config = checkpoint['config']
+if init_from == 'resume':
+    ckpt_config = checkpoint['config']
 checkpoint = None # free up memory
 
 # compile the model
@@ -308,12 +308,17 @@ if wandb_log and master_process:
     else:
         #depend on values set in the config file and command line
         #create the out_dir with model_params appended name
+        wandb_project = f'{model_type}-conversation'
         wandb_run_name=f'{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
         wandb_run_id = f'{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
         out_dir = f'out-{model_type}-w{window_size}-{model_params}-r{run_number[model_type]}'
+        print("project", wandb_project)
+        print(wandb_run_id)
+        
         config = {k: globals()[k] for k in config_keys} # will be useful for logging
         wandb.init(project=wandb_project, name=wandb_run_name, config=config, id=wandb_run_id)
-
+if master_process:
+    os.makedirs(out_dir, exist_ok=True)
 # Define a cleanup function
 def cleanup():
     """Clean up resources properly before exit."""

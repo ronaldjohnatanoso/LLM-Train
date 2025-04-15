@@ -13,19 +13,19 @@ out_dir=f''
 
 is_test = False
     # full, slide, local
-if init_from == 'scratch':
-    model_type = 'slide' 
+
+model_type = 'slide'
 
 #run number counter, increment after each run, used for wandb run name
 # dont increment for test runs
 run_number = {
     'full': 5,
-    'slide': 8,
-    'local': 12
+    'slide': 114,
+    'local': 15
 } 
 
 #256, 512, 128
-window_size = 8
+window_size = 16
 
 wandb_log = True
 wandb_project = f'{model_type}-conversation'
@@ -48,7 +48,7 @@ eval_iters = 200//1
 log_interval = 10 # don't print too too often
 
 # we expect to overfit on this small dataset, so only save when val improves
-always_save_checkpoint = True
+always_save_checkpoint = False
 # these make the total batch size be ~0.5M
 # 12 batch size * 1024 block size * 5 gradaccum * 8 GPUs = 491,520
 batch_size = 6
