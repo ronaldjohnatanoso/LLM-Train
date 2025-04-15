@@ -1,4 +1,4 @@
 {
-    "iter_num": 32400,
-    "steps": 324
+    "iter_num": 100000,
+    "steps": 1000
 }

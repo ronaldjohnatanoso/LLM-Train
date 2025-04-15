@@ -1,5 +1,4 @@
 {
-    "iter_num": 53300,
-    "steps": 533,
-    "total_tokens": 98304
+    "iter_num": 100000,
+    "steps": 1000
 }
