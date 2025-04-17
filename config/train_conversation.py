@@ -20,7 +20,7 @@ model_type = 'slide'
 # dont increment for test runs
 run_number = {
     'full': 5,
-    'slide': 114,
+    'slide': 215,
     'local': 15
 } 
 
@@ -48,7 +48,7 @@ eval_iters = 200//1
 log_interval = 10 # don't print too too often
 
 # we expect to overfit on this small dataset, so only save when val improves
-always_save_checkpoint = False
+always_save_checkpoint = True
 # these make the total batch size be ~0.5M
 # 12 batch size * 1024 block size * 5 gradaccum * 8 GPUs = 491,520
 batch_size = 6
