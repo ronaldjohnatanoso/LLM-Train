@@ -36,16 +36,14 @@ class CausalSelfAttention(nn.Module):
     def forward(self, x):
         #slide  
         B, T, C = x.size()
-        H = self.n_head
-        head_dim = C // H
 
         # Compute query, key, value projections
         q, k, v = self.c_attn(x).split(C, dim=2)
 
         # Reshape into multi-head format
-        q = q.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
-        k = k.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
-        v = v.view(B, T, H, head_dim).transpose(1, 2)  # (B, H, T, hs)
+        q = q.view(B, T, self.n_head, C//self.n_head).transpose(1, 2)  # (B, H, T, hs)
+        k = k.view(B, T, self.n_head, C//self.n_head).transpose(1, 2)  # (B, H, T, hs)
+        v = v.view(B, T, self.n_head, C//self.n_head).transpose(1, 2)  # (B, H, T, hs)
 
         # Create indices for the sliding window
         max_range = torch.arange(T, device=x.device)
@@ -142,7 +140,7 @@ class GPT(nn.Module):
             if pn.endswith('c_proj.weight'):
                 torch.nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
 
-        print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
+        # print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
 
     def get_num_params(self, non_embedding=True):
         if non_embedding:
