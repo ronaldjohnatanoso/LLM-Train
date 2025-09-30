@@ -1,232 +1,315 @@
+# LLM-Train
 
-# nanoGPT
+A PyTorch-based training framework for GPT-style language models with multiple architecture variants and comprehensive training utilities.
 
-![nanoGPT](assets/nanogpt.jpg)
+## Overview
 
-The simplest, fastest repository for training/finetuning medium-sized GPTs. It is a rewrite of [minGPT](https://github.com/karpathy/minGPT) that prioritizes teeth over education. Still under active development, but currently the file `train.py` reproduces GPT-2 (124M) on OpenWebText, running on a single 8XA100 40GB node in about 4 days of training. The code itself is plain and readable: `train.py` is a ~300-line boilerplate training loop and `model.py` a ~300-line GPT model definition, which can optionally load the GPT-2 weights from OpenAI. That's it.
+LLM-Train is a flexible training framework that supports three different GPT model architectures:
+- **Full Model** (`model_full.py`) - Complete GPT implementation with full attention
+- **Slide Model** (`model_slide.py`) - Sliding window attention variant
+- **Local Model** (`model_local.py`) - Local attention implementation
 
-![repro124m](assets/gpt2_124M_loss.png)
+The framework supports distributed training, various datasets, and includes comprehensive monitoring and sampling capabilities.
 
-Because the code is so simple, it is very easy to hack to your needs, train new models from scratch, or finetune pretrained checkpoints (e.g. biggest one currently available as a starting point would be the GPT-2 1.3B model from OpenAI).
+## Features
 
-## install
+- 🚀 **Multiple Model Architectures**: Choose from full, sliding window, or local attention models
+- 🔧 **Flexible Configuration**: Easy-to-use config system for hyperparameter tuning
+- 📊 **Weights & Biases Integration**: Built-in logging and experiment tracking
+- 🎯 **Multiple Datasets**: Support for conversations, Shakespeare, OpenWebText, and custom datasets
+- 🎲 **Text Generation**: Comprehensive sampling utilities with temperature and top-k controls
+- 📈 **Performance Monitoring**: Real-time training monitoring and benchmarking tools
 
-```
-pip install torch numpy transformers datasets tiktoken wandb tqdm
-```
+## Installation
 
-Dependencies:
-
-- [pytorch](https://pytorch.org) <3
-- [numpy](https://numpy.org/install/) <3
--  `transformers` for huggingface transformers <3 (to load GPT-2 checkpoints)
--  `datasets` for huggingface datasets <3 (if you want to download + preprocess OpenWebText)
--  `tiktoken` for OpenAI's fast BPE code <3
--  `wandb` for optional logging <3
--  `tqdm` for progress bars <3
-
-## quick start
-
-If you are not a deep learning professional and you just want to feel the magic and get your feet wet, the fastest way to get started is to train a character-level GPT on the works of Shakespeare. First, we download it as a single (1MB) file and turn it from raw text into one large stream of integers:
-
-```sh
-python data/shakespeare_char/prepare.py
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd LLM-Train
 ```
 
-This creates a `train.bin` and `val.bin` in that data directory. Now it is time to train your GPT. The size of it very much depends on the computational resources of your system:
-
-**I have a GPU**. Great, we can quickly train a baby GPT with the settings provided in the [config/train_shakespeare_char.py](config/train_shakespeare_char.py) config file:
-
-```sh
-python train.py config/train_shakespeare_char.py
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
-If you peek inside it, you'll see that we're training a GPT with a context size of up to 256 characters, 384 feature channels, and it is a 6-layer Transformer with 6 heads in each layer. On one A100 GPU this training run takes about 3 minutes and the best validation loss is 1.4697. Based on the configuration, the model checkpoints are being written into the `--out_dir` directory `out-shakespeare-char`. So once the training finishes we can sample from the best model by pointing the sampling script at this directory:
-
-```sh
-python sample.py --out_dir=out-shakespeare-char
+3. Verify CUDA installation (optional):
+```bash
+python cuda_check.py
 ```
 
-This generates a few samples, for example:
+## Quick Start
 
-```
-ANGELO:
-And cowards it be strawn to my bed,
-And thrust the gates of my threats,
-Because he that ale away, and hang'd
-An one with him.
+### 1. Prepare Your Data
 
-DUKE VINCENTIO:
-I thank your eyes against it.
-
-DUKE VINCENTIO:
-Then will answer him to save the malm:
-And what have you tyrannous shall do this?
-
-DUKE VINCENTIO:
-If you have done evils of all disposition
-To end his power, the day of thrust for a common men
-That I leave, to fight with over-liking
-Hasting in a roseman.
+For conversation data:
+```bash
+# Place your CSV file in data/conversations/ as conv.csv
+cd data/conversations/
+python csv_prep.py  # Converts CSV to input.txt
+python prepare.py   # Creates train.bin and val.bin
 ```
 
-lol  `¯\_(ツ)_/¯`. Not bad for a character-level model after 3 minutes of training on a GPU. Better results are quite likely obtainable by instead finetuning a pretrained GPT-2 model on this dataset (see finetuning section later).
+For other datasets, check the respective folders in `data/`:
+- `data/shakespeare/` - Shakespeare text
+- `data/openwebtext/` - OpenWebText dataset
+- `data/shakespeare_char/` - Character-level Shakespeare
 
-**I only have a macbook** (or other cheap computer). No worries, we can still train a GPT but we want to dial things down a notch. I recommend getting the bleeding edge PyTorch nightly ([select it here](https://pytorch.org/get-started/locally/) when installing) as it is currently quite likely to make your code more efficient. But even without it, a simple train run could look as follows:
+### 2. Configure Training
 
-```sh
-python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0
+Edit `config/train_conversation.py` or create your own config:
+
+```python
+# Model selection
+model_type = 'slide'  # 'full', 'slide', or 'local'
+
+# Training parameters
+batch_size = 6
+block_size = 1024
+n_layer = 12
+n_head = 12
+window_size = 16  # For slide/local models
+
+# Logging
+wandb_log = True
+wandb_project = 'my-llm-experiment'
 ```
 
-Here, since we are running on CPU instead of GPU we must set both `--device=cpu` and also turn off PyTorch 2.0 compile with `--compile=False`. Then when we evaluate we get a bit more noisy but faster estimate (`--eval_iters=20`, down from 200), our context size is only 64 characters instead of 256, and the batch size only 12 examples per iteration, not 64. We'll also use a much smaller Transformer (4 layers, 4 heads, 128 embedding size), and decrease the number of iterations to 2000 (and correspondingly usually decay the learning rate to around max_iters with `--lr_decay_iters`). Because our network is so small we also ease down on regularization (`--dropout=0.0`). This still runs in about ~3 minutes, but gets us a loss of only 1.88 and therefore also worse samples, but it's still good fun:
+### 3. Start Training
 
-```sh
-python sample.py --out_dir=out-shakespeare-char --device=cpu
-```
-Generates samples like this:
-
-```
-GLEORKEN VINGHARD III:
-Whell's the couse, the came light gacks,
-And the for mought you in Aut fries the not high shee
-bot thou the sought bechive in that to doth groan you,
-No relving thee post mose the wear
+```bash
+python train.py config/train_conversation.py --device=cuda --out_dir=my-model-run
 ```
 
-Not bad for ~3 minutes on a CPU, for a hint of the right character gestalt. If you're willing to wait longer, feel free to tune the hyperparameters, increase the size of the network, the context length (`--block_size`), the length of training, etc.
-
-Finally, on Apple Silicon Macbooks and with a recent PyTorch version make sure to add `--device=mps` (short for "Metal Performance Shaders"); PyTorch then uses the on-chip GPU that can *significantly* accelerate training (2-3X) and allow you to use larger networks. See [Issue 28](https://github.com/karpathy/nanoGPT/issues/28) for more.
-
-## reproducing GPT-2
-
-A more serious deep learning professional may be more interested in reproducing GPT-2 results. So here we go - we first tokenize the dataset, in this case the [OpenWebText](https://openwebtext2.readthedocs.io/en/latest/), an open reproduction of OpenAI's (private) WebText:
-
-```sh
-python data/openwebtext/prepare.py
+For distributed training:
+```bash
+torchrun --standalone --nproc_per_node=4 train.py config/train_conversation.py
 ```
 
-This downloads and tokenizes the [OpenWebText](https://huggingface.co/datasets/openwebtext) dataset. It will create a `train.bin` and `val.bin` which holds the GPT2 BPE token ids in one sequence, stored as raw uint16 bytes. Then we're ready to kick off training. To reproduce GPT-2 (124M) you'll want at least an 8X A100 40GB node and run:
+### 4. Generate Text
 
-```sh
-torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py
-```
-
-This will run for about 4 days using PyTorch Distributed Data Parallel (DDP) and go down to loss of ~2.85. Now, a GPT-2 model just evaluated on OWT gets a val loss of about 3.11, but if you finetune it it will come down to ~2.85 territory (due to an apparent domain gap), making the two models ~match.
-
-If you're in a cluster environment and you are blessed with multiple GPU nodes you can make GPU go brrrr e.g. across 2 nodes like:
-
-```sh
-# Run on the first (master) node with example IP 123.456.123.456:
-torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123.456 --master_port=1234 train.py
-# Run on the worker node:
-torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py
-```
-
-It is a good idea to benchmark your interconnect (e.g. iperf3). In particular, if you don't have Infiniband then also prepend `NCCL_IB_DISABLE=1` to the above launches. Your multinode training will work, but most likely _crawl_. By default checkpoints are periodically written to the `--out_dir`. We can sample from the model by simply `python sample.py`.
-
-Finally, to train on a single GPU simply run the `python train.py` script. Have a look at all of its args, the script tries to be very readable, hackable and transparent. You'll most likely want to tune a number of those variables depending on your needs.
-
-## baselines
-
-OpenAI GPT-2 checkpoints allow us to get some baselines in place for openwebtext. We can get the numbers as follows:
-
-```sh
-$ python train.py config/eval_gpt2.py
-$ python train.py config/eval_gpt2_medium.py
-$ python train.py config/eval_gpt2_large.py
-$ python train.py config/eval_gpt2_xl.py
-```
-
-and observe the following losses on train and val:
-
-| model | params | train loss | val loss |
-| ------| ------ | ---------- | -------- |
-| gpt2 | 124M         | 3.11  | 3.12     |
-| gpt2-medium | 350M  | 2.85  | 2.84     |
-| gpt2-large | 774M   | 2.66  | 2.67     |
-| gpt2-xl | 1558M     | 2.56  | 2.54     |
-
-However, we have to note that GPT-2 was trained on (closed, never released) WebText, while OpenWebText is just a best-effort open reproduction of this dataset. This means there is a dataset domain gap. Indeed, taking the GPT-2 (124M) checkpoint and finetuning on OWT directly for a while reaches loss down to ~2.85. This then becomes the more appropriate baseline w.r.t. reproduction.
-
-## finetuning
-
-Finetuning is no different than training, we just make sure to initialize from a pretrained model and train with a smaller learning rate. For an example of how to finetune a GPT on new text go to `data/shakespeare` and run `prepare.py` to download the tiny shakespeare dataset and render it into a `train.bin` and `val.bin`, using the OpenAI BPE tokenizer from GPT-2. Unlike OpenWebText this will run in seconds. Finetuning can take very little time, e.g. on a single GPU just a few minutes. Run an example finetuning like:
-
-```sh
-python train.py config/finetune_shakespeare.py
-```
-
-This will load the config parameter overrides in `config/finetune_shakespeare.py` (I didn't tune them much though). Basically, we initialize from a GPT2 checkpoint with `init_from` and train as normal, except shorter and with a small learning rate. If you're running out of memory try decreasing the model size (they are `{'gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'}`) or possibly decreasing the `block_size` (context length). The best checkpoint (lowest validation loss) will be in the `out_dir` directory, e.g. in `out-shakespeare` by default, per the config file. You can then run the code in `sample.py --out_dir=out-shakespeare`:
-
-```
-THEODORE:
-Thou shalt sell me to the highest bidder: if I die,
-I sell thee to the first; if I go mad,
-I sell thee to the second; if I
-lie, I sell thee to the third; if I slay,
-I sell thee to the fourth: so buy or sell,
-I tell thee again, thou shalt not sell my
-possession.
-
-JULIET:
-And if thou steal, thou shalt not sell thyself.
-
-THEODORE:
-I do not steal; I sell the stolen goods.
-
-THEODORE:
-Thou know'st not what thou sell'st; thou, a woman,
-Thou art ever a victim, a thing of no worth:
-Thou hast no right, no right, but to be sold.
-```
-
-Whoa there, GPT, entering some dark place over there. I didn't really tune the hyperparameters in the config too much, feel free to try!
-
-## sampling / inference
-
-Use the script `sample.py` to sample either from pre-trained GPT-2 models released by OpenAI, or from a model you trained yourself. For example, here is a way to sample from the largest available `gpt2-xl` model:
-
-```sh
+```bash
 python sample.py \
-    --init_from=gpt2-xl \
-    --start="What is the answer to life, the universe, and everything?" \
-    --num_samples=5 --max_new_tokens=100
+    --out_dir=my-model-run \
+    --start="What is the meaning of life?" \
+    --num_samples=5 \
+    --max_new_tokens=500
 ```
 
-If you'd like to sample from a model you trained, use the `--out_dir` to point the code appropriately. You can also prompt the model with some text from a file, e.g. ```python sample.py --start=FILE:prompt.txt```.
+## Model Architectures
 
-## efficiency notes
+### Full Model (`model_full.py`)
+- Complete GPT-2 style transformer
+- Full attention mechanism
+- Best for smaller sequences and maximum quality
 
-For simple model benchmarking and profiling, `bench.py` might be useful. It's identical to what happens in the meat of the training loop of `train.py`, but omits much of the other complexities.
+### Slide Model (`model_slide.py`)
+- Sliding window attention
+- Configurable window size
+- Good balance of performance and memory efficiency
 
-Note that the code by default uses [PyTorch 2.0](https://pytorch.org/get-started/pytorch-2.0/). At the time of writing (Dec 29, 2022) this makes `torch.compile()` available in the nightly release. The improvement from the one line of code is noticeable, e.g. cutting down iteration time from ~250ms / iter to 135ms / iter. Nice work PyTorch team!
+### Local Model (`model_local.py`)
+- Local attention patterns
+- Memory efficient for long sequences
+- Faster training on large contexts
 
-## todos
+## Configuration System
 
-- Investigate and add FSDP instead of DDP
-- Eval zero-shot perplexities on standard evals (e.g. LAMBADA? HELM? etc.)
-- Finetune the finetuning script, I think the hyperparams are not great
-- Schedule for linear batch size increase during training
-- Incorporate other embeddings (rotary, alibi)
-- Separate out the optim buffers from model params in checkpoints I think
-- Additional logging around network health (e.g. gradient clip events, magnitudes)
-- Few more investigations around better init etc.
+The framework uses a hierarchical configuration system:
 
-## troubleshooting
+1. **Default values** in `train.py`
+2. **Config files** in `config/` directory override defaults
+3. **Command line arguments** override config files
 
-Note that by default this repo uses PyTorch 2.0 (i.e. `torch.compile`). This is fairly new and experimental, and not yet available on all platforms (e.g. Windows). If you're running into related error messages try to disable this by adding `--compile=False` flag. This will slow down the code but at least it will run.
+### Key Configuration Files
 
-For some context on this repository, GPT, and language modeling it might be helpful to watch my [Zero To Hero series](https://karpathy.ai/zero-to-hero.html). Specifically, the [GPT video](https://www.youtube.com/watch?v=kCc8FmEb1nY) is popular if you have some prior language modeling context.
+- `config/train_conversation.py` - Conversation training setup
+- `config/train_gpt2.py` - GPT-2 replication setup
+- `config/finetune_shakespeare.py` - Shakespeare fine-tuning
 
-For more questions/discussions feel free to stop by **#nanoGPT** on Discord:
+### Important Parameters
 
-[![](https://dcbadge.vercel.app/api/server/3zy8kqD9Cp?compact=true&style=flat)](https://discord.gg/3zy8kqD9Cp)
+```python
+# Model architecture
+model_type = 'slide'        # Model variant
+n_layer = 12               # Number of transformer layers
+n_head = 12                # Number of attention heads
+n_embd = 768               # Embedding dimension
+window_size = 16           # Attention window (slide/local only)
 
-## acknowledgements
+# Training
+batch_size = 6             # Batch size per GPU
+block_size = 1024          # Sequence length
+learning_rate = 6e-4       # Peak learning rate
+max_iters = 100000         # Training iterations
+gradient_accumulation_steps = 8  # Gradient accumulation
 
-All nanoGPT experiments are powered by GPUs on [Lambda labs](https://lambdalabs.com), my favorite Cloud GPU provider. Thank you Lambda labs for sponsoring nanoGPT!
+# Evaluation
+eval_interval = 100        # Evaluation frequency
+eval_iters = 200          # Evaluation iterations
+always_save_checkpoint = True  # Save all checkpoints
+```
 
-## Modifications by Ronald John Atanoso
+## Data Preparation
 
-This project was originally created by Andrej Karpathy and licensed under the MIT license.  
-Significant modifications and new features were added by Ronald John Atanoso in 2025.
+### Conversation Data
+1. Place CSV file as `data/conversations/conv.csv`
+2. CSV should have format: `[column_a, question, answer]`
+3. Run `csv_prep.py` to extract questions and answers
+4. Run `prepare.py` to tokenize and create binary files
+
+### Custom Data
+1. Create a folder in `data/your_dataset/`
+2. Add your text data as `input.txt`
+3. Create a `prepare.py` script following existing examples
+4. Update dataset name in your config file
+
+## Training Commands
+
+### Basic Training
+```bash
+python train.py config/train_conversation.py
+```
+
+### With Custom Parameters
+```bash
+python train.py config/train_conversation.py \
+    --batch_size=8 \
+    --learning_rate=3e-4 \
+    --max_iters=50000 \
+    --out_dir=custom-run
+```
+
+### Resume Training
+```bash
+python train.py config/train_conversation.py \
+    --init_from=resume \
+    --out_dir=existing-run
+```
+
+### Distributed Training
+```bash
+# Single node, multiple GPUs
+torchrun --standalone --nproc_per_node=4 train.py config/train_conversation.py
+
+# Multiple nodes
+torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 \
+    --master_addr=192.168.1.1 --master_port=1234 \
+    train.py config/train_conversation.py
+```
+
+## Text Generation
+
+### Basic Sampling
+```bash
+python sample.py --out_dir=my-model --start="Hello world"
+```
+
+### Advanced Sampling
+```bash
+python sample.py \
+    --out_dir=my-model \
+    --start="Write a story about" \
+    --num_samples=10 \
+    --max_new_tokens=1000 \
+    --temperature=0.8 \
+    --top_k=200 \
+    --seed=42
+```
+
+### Sampling Parameters
+- `temperature`: Controls randomness (0.1 = conservative, 1.0 = balanced, 2.0 = creative)
+- `top_k`: Only consider top-k most likely tokens
+- `max_new_tokens`: Maximum tokens to generate
+- `num_samples`: Number of independent samples
+
+## Monitoring and Logging
+
+### Weights & Biases
+Enable W&B logging in your config:
+```python
+wandb_log = True
+wandb_project = 'my-project'
+wandb_run_name = 'experiment-1'
+```
+
+### Training Monitoring
+```bash
+python monitor_training.py --out_dir=my-model
+```
+
+### Benchmarking
+```bash
+python bench.py --batch_size=12 --compile=True
+```
+
+## Project Structure
+
+```
+LLM-Train/
+├── README.md                 # This file
+├── requirements.txt          # Python dependencies
+├── train.py                 # Main training script
+├── sample.py                # Text generation script
+├── model_full.py            # Full attention model
+├── model_slide.py           # Sliding window model
+├── model_local.py           # Local attention model
+├── config/                  # Configuration files
+│   ├── train_conversation.py
+│   ├── train_gpt2.py
+│   └── ...
+├── data/                    # Dataset directories
+│   ├── conversations/
+│   ├── shakespeare/
+│   ├── openwebtext/
+│   └── ...
+├── out/                     # Training outputs
+└── assets/                  # Images and resources
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**CUDA Out of Memory**
+- Reduce `batch_size` or `block_size`
+- Enable gradient checkpointing
+- Use smaller model (`n_layer`, `n_head`, `n_embd`)
+
+**Slow Training**
+- Enable compilation: `compile=True`
+- Use mixed precision: `dtype='bfloat16'`
+- Increase `gradient_accumulation_steps`
+
+**Poor Generation Quality**
+- Train longer (`max_iters`)
+- Adjust learning rate schedule
+- Try different model architectures
+- Increase model size
+
+**Data Loading Errors**
+- Ensure `train.bin` and `val.bin` exist in dataset folder
+- Check dataset path in config
+- Verify data preparation scripts ran successfully
+
+### Performance Tips
+
+1. **Use Flash Attention**: Enabled by default in PyTorch 2.0+
+2. **Compile Models**: Set `compile=True` for 20-30% speedup
+3. **Mixed Precision**: Use `bfloat16` on modern GPUs
+4. **Gradient Accumulation**: Increase for larger effective batch sizes
+5. **Window Size**: Tune for slide/local models based on your data
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## Acknowledgments
+
+- Based on Andrej Karpathy's nanoGPT
+- Inspired by OpenAI's GPT-2 architecture
+- Uses Hugging Face tokenizers and datasets
